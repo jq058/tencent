@@ -328,7 +328,7 @@ async function main() {
   console.log(`Model configured: ${modelConfigured}`);
   if (totalBlocked > 0) {
     console.log(`\n${totalBlocked} test(s) are BLOCKED because no model API key is configured.`);
-    console.log("Set CODEBUDDY_API_KEY in .env.local to evaluate answer quality.");
+    console.log("Set ADP_APP_KEY in .env.local to evaluate answer quality.");
     console.log("Permission filtering and retrieval are verified via model_context_document_ids checks.");
   }
 }

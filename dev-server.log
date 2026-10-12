@@ -1,0 +1,26 @@
+﻿node.exe : npm notice run app@0.1.0 npx
+At C:\Program Files\nodejs\npx.ps1:30 char:3
++   & $NODE_EXE $NPX_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm notice run app@0.1.0 npx:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm notice run next dev
+Γû▓ Next.js 16.4.0 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.12:3000
+- Environments: .env.local
+Γ£ô Ready in 603ms
+Γ£ô Running next.config.ts took 40ms
+
+ POST /api/ask 200 in 260ms (next.js: 223ms, application-code: 37ms)
+ POST /api/ask 200 in 15ms (next.js: 2ms, application-code: 12ms)
+ POST /api/ask 200 in 13ms (next.js: 2ms, application-code: 11ms)
+ POST /api/ask 200 in 9ms (next.js: 1.6ms, application-code: 7ms)
+ POST /api/ask 200 in 10ms (next.js: 1.7ms, application-code: 8ms)
+ POST /api/ask 200 in 9ms (next.js: 1.6ms, application-code: 7ms)
+ POST /api/ask 200 in 8ms (next.js: 1.6ms, application-code: 6ms)
+ POST /api/ask 200 in 9ms (next.js: 1.2ms, application-code: 7ms)
+ POST /api/ask 200 in 13ms (next.js: 1.6ms, application-code: 12ms)
+ POST /api/ask 200 in 8ms (next.js: 1.7ms, application-code: 6ms)
+ GET /api/documents?user=daniel 200 in 40ms (next.js: 34ms, application-code: 6ms)

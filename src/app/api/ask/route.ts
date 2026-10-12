@@ -143,6 +143,8 @@ export async function POST(request: NextRequest) {
   }
 
   // 5. Send only relevant permitted excerpts to the LLM.
+  //    Pass user.id as visitorId for ADP (derived from server-resolved
+  //    demo identity, never from the browser).
   const llmResult = await callLlm(
     query,
     excerpts.map((e) => ({
@@ -150,6 +152,7 @@ export async function POST(request: NextRequest) {
       document_title: e.document_title,
       content: e.content,
     })),
+    user.id,
   );
 
   let answer: string;

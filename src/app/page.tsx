@@ -333,8 +333,9 @@ export default function HomePage() {
               <strong>Model not configured.</strong> No language model API key
               found. The app returns the neutral fallback response. Create{" "}
               <code className="font-mono">.env.local</code> with{" "}
-              <code className="font-mono">CODEBUDDY_API_KEY</code> (preferred),
+              <code className="font-mono">ADP_APP_KEY</code> (preferred),
               or one of{" "}
+              <code className="font-mono">CODEBUDDY_API_KEY</code>,{" "}
               <code className="font-mono">OPENAI_API_KEY</code>,{" "}
               <code className="font-mono">ANTHROPIC_API_KEY</code>,{" "}
               <code className="font-mono">DEEPSEEK_API_KEY</code>, or{" "}
