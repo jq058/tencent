@@ -1,0 +1,507 @@
+{
+  "schema_version": "1.0",
+  "dataset_id": "internal-brain-sgd-idr-v1",
+  "synthetic": true,
+  "company": "Company A (fictional)",
+  "timezone": "Asia/Singapore",
+  "snapshot_at": "2026-10-12T10:00:00+08:00",
+  "ingestion_contract": {
+    "index_only": "documents[].content_markdown",
+    "content_metadata": [
+      "id",
+      "platform",
+      "title",
+      "source_url",
+      "version",
+      "updated_at"
+    ],
+    "server_only": [
+      "users",
+      "documents[].acl",
+      "documents[].source_scope"
+    ],
+    "never_index": [
+      "README.md",
+      "expected-results.json",
+      "demo-events.json",
+      "dataset-manifest.json"
+    ],
+    "source_access": "Effective grants are fixtures, not a production implementation of platform authorization. Real connectors must resolve source-specific permissions for the authenticated requester.",
+    "links": "Source URLs use reserved .example domains. Resolve these IDs to permission-checked local document views; do not present them as live platform URLs.",
+    "related_links": "Filter related_document_ids by current access before exposing them to the user or the model."
+  },
+  "users": [
+    {
+      "id": "daniel",
+      "display_name": "Daniel Ong",
+      "role": "engineering",
+      "group_ids": [
+        "demo_basics",
+        "engineering"
+      ],
+      "synthetic": true,
+      "application_capabilities": [
+        "knowledge.query"
+      ]
+    },
+    {
+      "id": "priya",
+      "display_name": "Priya Menon",
+      "role": "compliance_officer",
+      "group_ids": [
+        "demo_basics",
+        "compliance"
+      ],
+      "synthetic": true,
+      "application_capabilities": [
+        "knowledge.query",
+        "audit.read_demo_scope"
+      ],
+      "audit_scope_user_ids": [
+        "daniel",
+        "priya",
+        "marcus"
+      ]
+    },
+    {
+      "id": "marcus",
+      "display_name": "Marcus Teo",
+      "role": "contractor",
+      "group_ids": [
+        "demo_basics"
+      ],
+      "synthetic": true,
+      "application_capabilities": [
+        "knowledge.query"
+      ]
+    }
+  ],
+  "documents": [
+    {
+      "id": "CONF-ENG-001",
+      "platform": "confluence",
+      "title": "SGD to IDR payout incident postmortem",
+      "source_url": "https://internal-brain.example/sources/CONF-ENG-001",
+      "source_url_kind": "reserved_example_domain_placeholder",
+      "synthetic": true,
+      "company": "Company A (fictional)",
+      "version": 1,
+      "updated_at": "2026-08-21T11:00:00+08:00",
+      "ingested_at": "2026-10-12T10:00:00+08:00",
+      "source_scope": {
+        "type": "confluence_space_and_page",
+        "space_key": "ENG",
+        "space_reader_group_ids": [
+          "engineering"
+        ],
+        "page_restricted_to_user_ids": null
+      },
+      "acl": {
+        "policy_version": 1,
+        "effective_reader_user_ids": [
+          "daniel"
+        ],
+        "authority": "synthetic_source_fixture"
+      },
+      "related_document_ids": [
+        "CONF-ENG-002",
+        "JIRA-PAY-101",
+        "JIRA-PAY-102",
+        "JIRA-PAY-103",
+        "SLACK-ENG-001",
+        "SLACK-ENG-002"
+      ],
+      "content_markdown": "# SGD to IDR payout incident postmortem\n\nFictional hackathon data for Company A. This is not a real incident or a real company record.\n\nIncident reference: INC-2026-0814. Owner: Aisha Lim, incident commander.\n\n## Summary\n\nOn 14 August 2026, the SGD to IDR payout corridor was disrupted from 09:10 to 14:10 Singapore time. All affected items were reconciled by 14:10.\n\nA downstream payout partner changed its request contract and began requiring the field `destination_branch_code`. Company A's corridor validation did not reject requests when that field was blank. The partner rejected those requests.\n\n## Retry behavior\n\nThe retry worker queued 12 additional jobs for payouts that were already in the queue. The incident team cancelled those duplicate jobs before settlement. No duplicate beneficiary payments were completed. Duplicate queue entries and duplicate settled payments are different outcomes.\n\n## Recovery\n\nAt 09:10 the team paused the affected corridor. Engineers added a temporary validation check and corrected the invalid payloads. Operations replayed each approved payout once after reconciliation checks. At 14:10 reconciliation completed and the corridor resumed.\n\n## Follow-up work\n\nPAY-101 adds permanent validation for the partner's required field.\nPAY-102 adds an idempotency guard to the retry worker.\nPAY-103 adds alerts for unusual rejection rates in this corridor.\n\nCurrent ticket statuses and closure times belong to the Jira records. Approval evidence belongs to the Slack sign-off thread. The current operating procedure is the payout runbook.\n\n## Diagnostic reference\n\nThe diagnostic correlation key recorded in this postmortem is `IDR-VAL-714`. This reference is deliberately unique to this document for the permission-revocation test.\n\nCustomer counts, payout amounts, and reporting decisions are maintained separately by Compliance.\n"
+    },
+    {
+      "id": "CONF-ENG-002",
+      "platform": "confluence",
+      "title": "SGD to IDR payout recovery runbook",
+      "source_url": "https://internal-brain.example/sources/CONF-ENG-002",
+      "source_url_kind": "reserved_example_domain_placeholder",
+      "synthetic": true,
+      "company": "Company A (fictional)",
+      "version": 1,
+      "updated_at": "2026-08-20T17:00:00+08:00",
+      "ingested_at": "2026-10-12T10:00:00+08:00",
+      "source_scope": {
+        "type": "confluence_space_and_page",
+        "space_key": "ENG",
+        "space_reader_group_ids": [
+          "engineering"
+        ],
+        "page_restricted_to_user_ids": null
+      },
+      "acl": {
+        "policy_version": 1,
+        "effective_reader_user_ids": [
+          "daniel"
+        ],
+        "authority": "synthetic_source_fixture"
+      },
+      "related_document_ids": [
+        "JIRA-PAY-101",
+        "JIRA-PAY-102",
+        "JIRA-PAY-103",
+        "SLACK-ENG-002"
+      ],
+      "content_markdown": "# SGD to IDR payout recovery runbook\n\nFictional hackathon data for Company A. This is not a real incident or a real company record.\n\nRunbook reference: RB-IDR-01. Owner: Payments Engineering.\nThis is version 1 of the demo runbook.\n\n## Recovery procedure\n\n1. Pause dispatch for the affected corridor and identify the affected payout IDs.\n2. Confirm each payout includes a non-empty `destination_branch_code` that matches the partner contract.\n3. Check the retry idempotency key for each payout. Cancel duplicate queued jobs before replay.\n4. Confirm reconciliation status with the incident commander and replay each approved payout once.\n5. Compare dispatch and settlement records before returning the corridor to normal operation.\n\n## Change record\n\nOn 20 August, the runbook incorporated the permanent validator from PAY-101 and the retry idempotency guard from PAY-102. The linked Slack sign-off thread records who approved each change. PAY-103 remains a separate monitoring improvement.\n\nThis runbook does not contain customer impact figures or regulatory filing decisions.\n"
+    },
+    {
+      "id": "CONF-GEN-001",
+      "platform": "confluence",
+      "title": "Demo staff and contractor handbook",
+      "source_url": "https://internal-brain.example/sources/CONF-GEN-001",
+      "source_url_kind": "reserved_example_domain_placeholder",
+      "synthetic": true,
+      "company": "Company A (fictional)",
+      "version": 1,
+      "updated_at": "2026-08-01T09:00:00+08:00",
+      "ingested_at": "2026-10-12T10:00:00+08:00",
+      "source_scope": {
+        "type": "confluence_space_and_page",
+        "space_key": "DEMO-BASICS",
+        "space_reader_group_ids": [
+          "demo_basics"
+        ],
+        "page_restricted_to_user_ids": null
+      },
+      "acl": {
+        "policy_version": 1,
+        "effective_reader_user_ids": [
+          "daniel",
+          "priya",
+          "marcus"
+        ],
+        "authority": "synthetic_source_fixture"
+      },
+      "related_document_ids": [
+        "CONF-GEN-002"
+      ],
+      "content_markdown": "# Demo staff and contractor handbook\n\nFictional hackathon data for Company A. This is not a real incident or a real company record.\n\n## Basic access\n\nEmployees and approved contractors may read the demo handbook and general knowledge-base FAQs. Access to other material depends on the permissions attached to each source.\n\n## Getting help\n\nFor help with a laptop or account, submit a request through the IT Help desk. Include the application name, a short description of the problem, and a contact method.\n\nFor an access request, ask the relevant source owner. An access request does not itself grant permission.\n\n## Working practices\n\nKeep account credentials private. Use an individual account for work. Record decisions in the appropriate team system so collaborators can find the current version.\n\nContractor onboarding is complete when the sponsor confirms the engagement details and the contractor can access the general handbook.\n"
+    },
+    {
+      "id": "CONF-GEN-002",
+      "platform": "confluence",
+      "title": "General knowledge base FAQs",
+      "source_url": "https://internal-brain.example/sources/CONF-GEN-002",
+      "source_url_kind": "reserved_example_domain_placeholder",
+      "synthetic": true,
+      "company": "Company A (fictional)",
+      "version": 1,
+      "updated_at": "2026-08-01T10:00:00+08:00",
+      "ingested_at": "2026-10-12T10:00:00+08:00",
+      "source_scope": {
+        "type": "confluence_space_and_page",
+        "space_key": "DEMO-BASICS",
+        "space_reader_group_ids": [
+          "demo_basics"
+        ],
+        "page_restricted_to_user_ids": null
+      },
+      "acl": {
+        "policy_version": 1,
+        "effective_reader_user_ids": [
+          "daniel",
+          "priya",
+          "marcus"
+        ],
+        "authority": "synthetic_source_fixture"
+      },
+      "related_document_ids": [
+        "CONF-GEN-001"
+      ],
+      "content_markdown": "# General knowledge base FAQs\n\nFictional hackathon data for Company A. This is not a real incident or a real company record.\n\n## Where do I request help with an account?\n\nSubmit a request to the IT Help desk, including the application name and a description of the issue.\n\n## Who can grant access to a document?\n\nAsk the owner of the relevant source or workspace. The knowledge assistant cannot grant access.\n\n## How do I find current information?\n\nUse the source link and check its last-updated time. If a permitted source is unavailable or out of date, ask its owner for the latest version.\n\n## Can contractors use the knowledge assistant?\n\nApproved contractors can ask questions about sources available to their accounts, including this FAQ and the general handbook.\n\n## How should corrections be made?\n\nCorrect the original source. The knowledge system should pick up that change through its synchronization process.\n"
+    },
+    {
+      "id": "JIRA-PAY-101",
+      "platform": "jira",
+      "title": "PAY-101 Enforce the required partner field",
+      "source_url": "https://internal-brain.example/sources/JIRA-PAY-101",
+      "source_url_kind": "reserved_example_domain_placeholder",
+      "synthetic": true,
+      "company": "Company A (fictional)",
+      "version": 1,
+      "updated_at": "2026-08-18T10:00:00+08:00",
+      "ingested_at": "2026-10-12T10:00:00+08:00",
+      "source_scope": {
+        "type": "jira_project_and_issue_security",
+        "project_key": "PAY",
+        "browse_project_group_ids": [
+          "engineering"
+        ],
+        "issue_security_level": "payments_engineering",
+        "issue_security_reader_group_ids": [
+          "engineering"
+        ]
+      },
+      "acl": {
+        "policy_version": 1,
+        "effective_reader_user_ids": [
+          "daniel"
+        ],
+        "authority": "synthetic_source_fixture"
+      },
+      "related_document_ids": [
+        "CONF-ENG-001",
+        "CONF-ENG-002",
+        "SLACK-ENG-002"
+      ],
+      "content_markdown": "# PAY-101 Enforce the required partner field\n\nFictional hackathon data for Company A. This is not a real incident or a real company record.\n\nIssue key: PAY-101\nStatus: Done\nOwner: Aisha Lim\nCreated: 14 August 2026 at 15:00 Singapore time\nClosed: 18 August 2026 at 10:00 Singapore time\nRelated incident: INC-2026-0814\n\n## Work completed\n\nThe SGD to IDR validator rejects an empty `destination_branch_code` before dispatch. It records the validation error without sending the invalid request to the payout partner.\n\n## Acceptance evidence\n\nThe test cases cover a present value, a missing field, and an empty string. The missing-field and empty-string cases stop before dispatch.\n\nMei Tan approved the change in the Slack sign-off thread on 18 August at 09:45. The ticket was then moved to Done at 10:00. The runbook includes the validation step.\n"
+    },
+    {
+      "id": "JIRA-PAY-102",
+      "platform": "jira",
+      "title": "PAY-102 Prevent duplicate queued retries",
+      "source_url": "https://internal-brain.example/sources/JIRA-PAY-102",
+      "source_url_kind": "reserved_example_domain_placeholder",
+      "synthetic": true,
+      "company": "Company A (fictional)",
+      "version": 1,
+      "updated_at": "2026-08-20T16:30:00+08:00",
+      "ingested_at": "2026-10-12T10:00:00+08:00",
+      "source_scope": {
+        "type": "jira_project_and_issue_security",
+        "project_key": "PAY",
+        "browse_project_group_ids": [
+          "engineering"
+        ],
+        "issue_security_level": "payments_engineering",
+        "issue_security_reader_group_ids": [
+          "engineering"
+        ]
+      },
+      "acl": {
+        "policy_version": 1,
+        "effective_reader_user_ids": [
+          "daniel"
+        ],
+        "authority": "synthetic_source_fixture"
+      },
+      "related_document_ids": [
+        "CONF-ENG-001",
+        "CONF-ENG-002",
+        "SLACK-ENG-002"
+      ],
+      "content_markdown": "# PAY-102 Prevent duplicate queued retries\n\nFictional hackathon data for Company A. This is not a real incident or a real company record.\n\nIssue key: PAY-102\nStatus: Done\nOwner: Ben Ho\nCreated: 14 August 2026 at 15:10 Singapore time\nClosed: 20 August 2026 at 16:30 Singapore time\nRelated incident: INC-2026-0814\n\n## Work completed\n\nThe retry worker checks a stable payout idempotency key before inserting another queued job. A repeated request with the same key does not create an additional active job.\n\n## Acceptance evidence\n\nThe test cases cover repeated requests and two workers attempting the same payout concurrently. Both cases retain one active queued job.\n\nRavi Shah approved the change in the Slack sign-off thread on 20 August at 16:00. The ticket was then moved to Done at 16:30. The runbook includes the duplicate-job check.\n\nThis work addresses duplicate queue entries. It does not imply that duplicate payments settled during the incident.\n"
+    },
+    {
+      "id": "JIRA-PAY-103",
+      "platform": "jira",
+      "title": "PAY-103 Add corridor rejection alerts",
+      "source_url": "https://internal-brain.example/sources/JIRA-PAY-103",
+      "source_url_kind": "reserved_example_domain_placeholder",
+      "synthetic": true,
+      "company": "Company A (fictional)",
+      "version": 1,
+      "updated_at": "2026-10-09T15:00:00+08:00",
+      "ingested_at": "2026-10-12T10:00:00+08:00",
+      "source_scope": {
+        "type": "jira_project_and_issue_security",
+        "project_key": "PAY",
+        "browse_project_group_ids": [
+          "engineering"
+        ],
+        "issue_security_level": "payments_engineering",
+        "issue_security_reader_group_ids": [
+          "engineering"
+        ]
+      },
+      "acl": {
+        "policy_version": 1,
+        "effective_reader_user_ids": [
+          "daniel"
+        ],
+        "authority": "synthetic_source_fixture"
+      },
+      "related_document_ids": [
+        "CONF-ENG-001",
+        "SLACK-ENG-001"
+      ],
+      "content_markdown": "# PAY-103 Add corridor rejection alerts\n\nFictional hackathon data for Company A. This is not a real incident or a real company record.\n\nIssue key: PAY-103\nStatus: In Progress\nOwner: Nora Chen\nCreated: 14 August 2026 at 15:20 Singapore time\nTarget completion: 15 October 2026\nRelated incident: INC-2026-0814\n\n## Planned change\n\nAdd a corridor-specific alert when the demo partner rejection rate remains above the configured threshold for two consecutive observation windows.\n\n## Current state\n\nThe metric and dashboard are implemented in the demo environment. Alert-routing verification is outstanding. There is no final approval and no closure timestamp.\n\nThe proposed threshold belongs to the synthetic test configuration. It is not a production operating recommendation.\n"
+    },
+    {
+      "id": "SLACK-ENG-001",
+      "platform": "slack",
+      "title": "Payments engineering incident discussion",
+      "source_url": "https://internal-brain.example/sources/SLACK-ENG-001",
+      "source_url_kind": "reserved_example_domain_placeholder",
+      "synthetic": true,
+      "company": "Company A (fictional)",
+      "version": 1,
+      "updated_at": "2026-08-14T14:15:00+08:00",
+      "ingested_at": "2026-10-12T10:00:00+08:00",
+      "source_scope": {
+        "type": "slack_channel_membership",
+        "workspace_id": "demo-workspace",
+        "channel_id": "payments-eng",
+        "channel_name": "payments-eng",
+        "private": true,
+        "member_user_ids": [
+          "daniel"
+        ]
+      },
+      "acl": {
+        "policy_version": 1,
+        "effective_reader_user_ids": [
+          "daniel"
+        ],
+        "authority": "synthetic_source_fixture"
+      },
+      "related_document_ids": [
+        "CONF-ENG-001",
+        "JIRA-PAY-101",
+        "JIRA-PAY-102",
+        "JIRA-PAY-103"
+      ],
+      "content_markdown": "# Payments engineering incident discussion\n\nFictional hackathon data for Company A. This is not a real incident or a real company record.\n\nWorkspace: demo-workspace\nPrivate channel: payments-eng\nThread ID: thread-incident-0814\nAll timestamps are Singapore time on 14 August 2026.\n\n09:18 — Aisha Lim: The partner now requires `destination_branch_code`. Our existing validation lets an empty value pass. We have paused the corridor.\n\n09:27 — Ben Ho: The retry worker also created duplicate queued jobs. I am cancelling the duplicates before any replay. We should distinguish duplicate jobs from settled payments.\n\n10:05 — Aisha Lim: Temporary validation is in place. We will replay only the payout IDs approved by reconciliation.\n\n14:10 — Aisha Lim: Reconciliation is complete. The corridor can resume.\n\n14:15 — Nora Chen: Follow-up work is recorded as PAY-101 for permanent validation, PAY-102 for retry idempotency, and PAY-103 for rejection-rate alerts.\n"
+    },
+    {
+      "id": "SLACK-ENG-002",
+      "platform": "slack",
+      "title": "Payments engineering fix approvals",
+      "source_url": "https://internal-brain.example/sources/SLACK-ENG-002",
+      "source_url_kind": "reserved_example_domain_placeholder",
+      "synthetic": true,
+      "company": "Company A (fictional)",
+      "version": 1,
+      "updated_at": "2026-08-20T17:05:00+08:00",
+      "ingested_at": "2026-10-12T10:00:00+08:00",
+      "source_scope": {
+        "type": "slack_channel_membership",
+        "workspace_id": "demo-workspace",
+        "channel_id": "payments-eng",
+        "channel_name": "payments-eng",
+        "private": true,
+        "member_user_ids": [
+          "daniel"
+        ]
+      },
+      "acl": {
+        "policy_version": 1,
+        "effective_reader_user_ids": [
+          "daniel"
+        ],
+        "authority": "synthetic_source_fixture"
+      },
+      "related_document_ids": [
+        "CONF-ENG-002",
+        "JIRA-PAY-101",
+        "JIRA-PAY-102",
+        "JIRA-PAY-103"
+      ],
+      "content_markdown": "# Payments engineering fix approvals\n\nFictional hackathon data for Company A. This is not a real incident or a real company record.\n\nWorkspace: demo-workspace\nPrivate channel: payments-eng\nThread ID: thread-fix-approvals\nAll timestamps are Singapore time.\n\n18 August 2026 at 09:45 — Mei Tan: I reviewed PAY-101 and the missing-field tests. I approve the required-field validation change.\n\n18 August 2026 at 10:02 — Aisha Lim: PAY-101 is now Done. The closure time is 10:00.\n\n20 August 2026 at 16:00 — Ravi Shah: I reviewed PAY-102, including concurrent retries. I approve the idempotency guard.\n\n20 August 2026 at 16:35 — Ben Ho: PAY-102 is now Done. The closure time is 16:30.\n\n20 August 2026 at 17:05 — Aisha Lim: The payout recovery runbook now includes both changes. PAY-103 is still open and needs alert-routing verification.\n"
+    },
+    {
+      "id": "DRIVE-COMP-001",
+      "platform": "google_drive",
+      "title": "SG entity incident assessment and demo filing record",
+      "source_url": "https://internal-brain.example/sources/DRIVE-COMP-001",
+      "source_url_kind": "reserved_example_domain_placeholder",
+      "synthetic": true,
+      "company": "Company A (fictional)",
+      "version": 1,
+      "updated_at": "2026-08-17T16:00:00+08:00",
+      "ingested_at": "2026-10-12T10:00:00+08:00",
+      "source_scope": {
+        "type": "google_drive_inherited_file_permission",
+        "shared_drive_id": "demo-compliance",
+        "folder_id": "incident-records-sg",
+        "effective_permissions": [
+          {
+            "type": "group",
+            "principal_id": "compliance",
+            "role": "reader",
+            "inherited_from": "incident-records-sg"
+          }
+        ]
+      },
+      "acl": {
+        "policy_version": 1,
+        "effective_reader_user_ids": [
+          "priya"
+        ],
+        "authority": "synthetic_source_fixture"
+      },
+      "related_document_ids": [
+        "DRIVE-COMP-002",
+        "DRIVE-COMP-003"
+      ],
+      "content_markdown": "# SG entity incident assessment and demo filing record\n\nFictional hackathon data for Company A. This is not a real incident or a real company record.\n\nRecord: COMP-INC-2026-0814\nOwner: Priya Menon\nEntity: SG demo entity\nRelated incident: INC-2026-0814\n\n## Incident assessment\n\nOn 14 August 2026, the SGD to IDR payout service was disrupted from 09:10 to 14:10 Singapore time. The impact register records 340 affected payouts across 280 unique customers.\n\nOf these, 300 payouts were held before debit. Another 40 payouts, involving 32 customers, had been debited while beneficiary credit was pending. The temporarily unsettled debited amount was SGD 42,000 equivalent. All affected payouts were reconciled by 14:10, with no principal loss recorded in this exercise.\n\n## Reporting decision under the fictional exercise policy\n\nThe exercise assumes the SG demo entity must submit a notification by 17 August 2026 at 17:00 Singapore time. This is an invented deadline for the demonstration, not a statement of any regulator's requirements.\n\nThe simulated filing was submitted on 17 August at 15:20 Singapore time, before that deadline. Its internal receipt reference is DEMO-SG-0817-1520.\n\nThe Indonesian demo payout partner was notified on 14 August at 10:00 Singapore time. The exercise does not determine a separate Indonesian regulatory filing obligation. No EU-entity records are included or assessed.\n\n## Evidence\n\nThe impact register supplies the counts and amounts. The reconciliation and communications record confirms resolution. Engineering implementation details are outside this record.\n"
+    },
+    {
+      "id": "DRIVE-COMP-002",
+      "platform": "google_drive",
+      "title": "Customer impact register",
+      "source_url": "https://internal-brain.example/sources/DRIVE-COMP-002",
+      "source_url_kind": "reserved_example_domain_placeholder",
+      "synthetic": true,
+      "company": "Company A (fictional)",
+      "version": 1,
+      "updated_at": "2026-08-14T15:00:00+08:00",
+      "ingested_at": "2026-10-12T10:00:00+08:00",
+      "source_scope": {
+        "type": "google_drive_inherited_file_permission",
+        "shared_drive_id": "demo-compliance",
+        "folder_id": "incident-records-sg",
+        "effective_permissions": [
+          {
+            "type": "group",
+            "principal_id": "compliance",
+            "role": "reader",
+            "inherited_from": "incident-records-sg"
+          }
+        ]
+      },
+      "acl": {
+        "policy_version": 1,
+        "effective_reader_user_ids": [
+          "priya"
+        ],
+        "authority": "synthetic_source_fixture"
+      },
+      "related_document_ids": [
+        "DRIVE-COMP-001",
+        "DRIVE-COMP-003"
+      ],
+      "content_markdown": "# Customer impact register\n\nFictional hackathon data for Company A. This is not a real incident or a real company record.\n\nRegister: IMPACT-2026-0814\nOwner: Compliance Operations\nFormat in this starter pack: a text export of a synthetic tabular register.\nAll monetary amounts are synthetic SGD equivalents. No real exchange rate is implied.\n\n| Cohort | Affected payouts | Unique customers | Amount SGD equivalent | Resolution by 14:10 |\n| --- | ---: | ---: | ---: | --- |\n| Held before debit | 300 | 248 | 196000 | Released and reconciled |\n| Debited with beneficiary credit pending | 40 | 32 | 42000 | Beneficiary credit confirmed and reconciled |\n| Total | 340 | 280 | 238000 | All reconciled |\n\nThe two customer cohorts are disjoint in this fixture, so 248 + 32 = 280 unique customers. A payout count is not a customer count.\n\nSGD 238,000 is the total affected payout value. SGD 42,000 is the debited amount that was temporarily unsettled. Neither amount is a recorded loss. Principal loss at reconciliation is SGD 0.\n\nThe incident window is 09:10 to 14:10 Singapore time on 14 August 2026.\n"
+    },
+    {
+      "id": "DRIVE-COMP-003",
+      "platform": "google_drive",
+      "title": "Reconciliation and customer communications record",
+      "source_url": "https://internal-brain.example/sources/DRIVE-COMP-003",
+      "source_url_kind": "reserved_example_domain_placeholder",
+      "synthetic": true,
+      "company": "Company A (fictional)",
+      "version": 1,
+      "updated_at": "2026-08-14T16:00:00+08:00",
+      "ingested_at": "2026-10-12T10:00:00+08:00",
+      "source_scope": {
+        "type": "google_drive_inherited_file_permission",
+        "shared_drive_id": "demo-compliance",
+        "folder_id": "incident-records-sg",
+        "effective_permissions": [
+          {
+            "type": "group",
+            "principal_id": "compliance",
+            "role": "reader",
+            "inherited_from": "incident-records-sg"
+          }
+        ]
+      },
+      "acl": {
+        "policy_version": 1,
+        "effective_reader_user_ids": [
+          "priya"
+        ],
+        "authority": "synthetic_source_fixture"
+      },
+      "related_document_ids": [
+        "DRIVE-COMP-001",
+        "DRIVE-COMP-002"
+      ],
+      "content_markdown": "# Reconciliation and customer communications record\n\nFictional hackathon data for Company A. This is not a real incident or a real company record.\n\nRecord: RECON-COMMS-2026-0814\nOwner: Compliance Operations\nRelated incident: INC-2026-0814\n\n## Reconciliation\n\nAt 14:10 Singapore time on 14 August, Finance confirmed that all 340 affected payouts had been reconciled. No principal loss was recorded. The impact register contains the supporting cohort totals.\n\n## Customer communications\n\nThe approved demo statement says that SGD to IDR payouts experienced a delay and that affected payouts have now been reconciled. It gives affected customers a support contact through their authenticated account.\n\nThis is an internal approval record. The text is not part of the all-staff or contractor corpus, and the fixture does not model a public announcement.\n\n## Reporting evidence\n\nThe Indonesian demo payout partner was notified at 10:00 on 14 August. The SG demo filing status is maintained in the separate incident assessment record. This record makes no determination of legal reporting duties.\n"
+    }
+  ]
+}
