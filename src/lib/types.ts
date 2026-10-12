@@ -110,6 +110,8 @@ export interface AskResponse {
   model_model: string | null;
   model_context_document_ids: string[];
   model_error: string | null;
+  citation_validation_error: string | null;
+  rejected_citation_ids: string[];
 }
 
 export interface ConversationMessage {

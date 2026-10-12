@@ -1,0 +1,29 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e5]:
+      - heading "Internal Brain" [level=1] [ref=e6]
+      - paragraph [ref=e7]: Permission-filtered document retrieval — hackathon demo
+  - main [ref=e8]:
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - heading "Demo User Selector" [level=2] [ref=e11]
+        - generic [ref=e12]: Local demonstration only
+      - paragraph [ref=e15]: This selector chooses a demo identity for local testing. It is not production authentication. Roles and document permissions are resolved server-side and cannot be supplied by the browser.
+      - generic [ref=e16]:
+        - button "Daniel Ong Engineering" [ref=e17]:
+          - generic [ref=e18]: Daniel Ong
+          - generic [ref=e19]: Engineering
+        - button "Priya Menon Compliance" [ref=e20]:
+          - generic [ref=e21]: Priya Menon
+          - generic [ref=e22]: Compliance
+        - button "Marcus Teo Contractor" [ref=e23]:
+          - generic [ref=e24]: Marcus Teo
+          - generic [ref=e25]: Contractor
+    - heading "Ask a Question" [level=2] [ref=e27]
+    - generic [ref=e28]:
+      - complementary [ref=e29]:
+        - heading "Documents" [level=2] [ref=e31]
+        - paragraph [ref=e32]: Select a demo user to view available documents.
+      - generic [ref=e33]: Select a demo user to begin.
+  - contentinfo [ref=e35]:
+    - generic [ref=e36]: "Internal Brain — hackathon demo. All data is fictional. Baseline snapshot: 12 October 2026, 10:00 SGT."

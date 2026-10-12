@@ -49,6 +49,14 @@ export async function POST(request: NextRequest) {
   const requestId = randomUUID();
   const timestamp = new Date().toISOString();
 
+  return handleAskRequest(request, requestId, timestamp);
+}
+
+async function handleAskRequest(
+  request: NextRequest,
+  requestId: string,
+  timestamp: string,
+) {
   // 1. Resolve demo identity from server session.
   const demoUserId =
     request.headers.get("x-demo-user") ??
@@ -137,6 +145,8 @@ export async function POST(request: NextRequest) {
       model_model: config.model,
       model_context_document_ids: [],
       model_error: null,
+      citation_validation_error: null,
+      rejected_citation_ids: [],
     };
 
     return NextResponse.json(response);
@@ -158,6 +168,8 @@ export async function POST(request: NextRequest) {
   let answer: string;
   let validatedCitations: Citation[];
   let modelError: string | null = null;
+  let citationValidationError: string | null = null;
+  let rejectedCitationIds: string[] = [];
 
   if (!llmResult.ok || !llmResult.answer) {
     // The model call failed. Distinguish two cases:
@@ -182,11 +194,27 @@ export async function POST(request: NextRequest) {
     const rawCitationIds = extractCitationIds(llmResult.answer);
     validatedCitations = validateCitations(user.id, rawCitationIds, excerpts);
 
+    // Determine which raw citation IDs were rejected (not in excerpts
+    // sent to the model, or not permitted for this user).
+    const validatedIds = new Set(validatedCitations.map((c) => c.document_id));
+    rejectedCitationIds = rawCitationIds.filter((id) => !validatedIds.has(id));
+
     // Strip raw [[DOC-ID]] markers from the answer text.
     answer = stripCitations(llmResult.answer);
 
     // If the LLM returned the neutral response, normalize it.
     if (answer.includes("I couldn't find information")) {
+      answer = NEUTRAL_RESPONSE;
+      validatedCitations = [];
+    } else if (rejectedCitationIds.length > 0) {
+      // The model supplied at least one unsupported citation. Do NOT
+      // silently drop it and display the remaining answer as verified.
+      // Reject the response: return the neutral fallback with a
+      // validation error, and do NOT present any citations.
+      citationValidationError =
+        `The model referenced ${rejectedCitationIds.length} document(s) ` +
+        `that were not in the permitted excerpts sent to it: ` +
+        `[${rejectedCitationIds.join(", ")}]. The response is rejected.`;
       answer = NEUTRAL_RESPONSE;
       validatedCitations = [];
     }
@@ -225,14 +253,17 @@ export async function POST(request: NextRequest) {
     model_model: config.model,
     model_context_document_ids: modelContextIds,
     model_error: modelError,
+    citation_validation_error: citationValidationError,
+    rejected_citation_ids: rejectedCitationIds,
   };
 
   return NextResponse.json(response);
 }
 
 // Validate that every citation ID is in the permitted set AND was
-// part of the excerpts sent to the model. Invalid citations are
-// silently dropped — they are never shown to the user.
+// part of the excerpts sent to the model. Returns the set of valid
+// citations. The caller is responsible for rejecting the response if
+// any raw citation IDs were invalid — we do NOT silently drop them.
 function validateCitations(
   userId: string,
   rawIds: string[],

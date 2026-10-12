@@ -45,6 +45,8 @@ interface AskApiResponse {
   model_model: string | null;
   model_context_document_ids: string[];
   model_error: string | null;
+  citation_validation_error: string | null;
+  rejected_citation_ids: string[];
 }
 
 type TestStatus = "PASS" | "FAIL" | "BLOCKED";
@@ -236,6 +238,17 @@ async function runTest(
       name: "Positive answer (not neutral fallback)",
       passed: true,
       detail: "Model returned a substantive answer.",
+    });
+  }
+
+  // Citation validation: if the model supplied unsupported citations,
+  // the response was rejected. This is a FAIL (not a pass), even if
+  // the model produced a substantive answer.
+  if (data.citation_validation_error) {
+    checks.push({
+      name: "Citation validation (no unsupported citations)",
+      passed: false,
+      detail: data.citation_validation_error,
     });
   }
 

@@ -151,17 +151,41 @@ Question: ${query}`;
 }
 
 export function extractCitationIds(answer: string): string[] {
-  const matches = answer.matchAll(/\[\[([A-Z0-9\-]+)\]\]/g);
+  // Accept both [[DOC-ID]] (double brackets, as instructed) and
+  // [DOC-ID] (single brackets, which some models produce). The double-
+  // bracket match is tried first to avoid false positives from
+  // single-bracket matches inside double-bracket markers.
   const ids: string[] = [];
-  for (const m of matches) {
-    ids.push(m[1]);
+  const seen = new Set<string>();
+
+  // First pass: double-bracket format [[DOC-ID]]
+  const doubleMatches = answer.matchAll(/\[\[([A-Z0-9\-]+)\]\]/g);
+  for (const m of doubleMatches) {
+    if (!seen.has(m[1])) {
+      seen.add(m[1]);
+      ids.push(m[1]);
+    }
   }
-  // deduplicate preserving order
-  return [...new Set(ids)];
+
+  // Second pass: single-bracket format [DOC-ID] (not already captured)
+  const singleMatches = answer.matchAll(/(?<!\[\[)\[([A-Z0-9\-]+)\](?!\])/g);
+  for (const m of singleMatches) {
+    if (!seen.has(m[1])) {
+      seen.add(m[1]);
+      ids.push(m[1]);
+    }
+  }
+
+  return ids;
 }
 
 export function stripCitations(answer: string): string {
-  return answer.replace(/\s*\[\[[A-Z0-9\-]+\]\]/g, "").trim();
+  // Strip both [[DOC-ID]] and [DOC-ID] markers from the answer text.
+  return answer
+    .replace(/\s*\[\[[A-Z0-9\-]+\]\]/g, "")
+    .replace(/\s*(?<!\[\[)\[[A-Z0-9\-]+\](?!\])/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 export async function callLlm(
@@ -190,7 +214,7 @@ export async function callLlm(
       return await callCodeBuddy(
         systemPrompt,
         userMessage,
-        config.model === "default" ? undefined : config.model,
+        config.model === "default" || config.model === null ? undefined : config.model,
       );
     }
     if (config.provider === "openai") {
@@ -454,10 +478,12 @@ async function callCodeBuddy(
           if (
             block &&
             typeof block === "object" &&
-            block.type === "text" &&
-            typeof block.text === "string"
+            "type" in block &&
+            (block as Record<string, unknown>).type === "text" &&
+            "text" in block &&
+            typeof (block as Record<string, unknown>).text === "string"
           ) {
-            textParts.push(block.text);
+            textParts.push((block as Record<string, unknown>).text as string);
           }
         }
       }
@@ -556,6 +582,7 @@ function generateAdpId(): string {
   return randomUUID().replace(/-/g, "");
 }
 
+
 async function callAdp(
   systemPrompt: string,
   userMessage: string,
@@ -640,7 +667,22 @@ async function callAdp(
   }
 
   // Parse the SSE stream.
-  const { answer, error } = await parseAdpSseStream(response.body);
+  let answer: string;
+  let error: string | null = null;
+  try {
+    const parsed = await parseAdpSseStream(response.body);
+    answer = parsed.answer;
+    error = parsed.error;
+  } catch (err) {
+    return {
+      ok: false,
+      answer: null,
+      raw_citation_ids: [],
+      error: `ADP stream parsing failed: ${err instanceof Error ? err.message : String(err)}`,
+      provider: "adp",
+      model: "adp-workflow",
+    };
+  }
 
   if (error) {
     return {
@@ -712,7 +754,21 @@ async function parseAdpSseStream(
 
   try {
     for (;;) {
-      const { done, value } = await reader.read();
+      let done: boolean;
+      let value: Uint8Array | undefined;
+      try {
+        const result = await reader.read();
+        done = result.done;
+        value = result.value;
+      } catch (readErr) {
+        // Stream read failed (e.g., connection reset). If we already
+        // have accumulated text, use it. Otherwise, report the error.
+        if (streamError) {
+          throw readErr; // already have an error, let it propagate
+        }
+        streamError = `ADP stream read error: ${readErr instanceof Error ? readErr.message : String(readErr)}`;
+        break;
+      }
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
@@ -871,8 +927,14 @@ async function parseAdpSseStream(
         }
       }
     }
+  } catch (outerErr) {
+    // If any unexpected error occurs during SSE parsing, cancel the
+    // stream to close the connection, then re-throw so the caller
+    // can handle it.
+    try { await reader.cancel(); } catch { /* ignore */ }
+    throw outerErr;
   } finally {
-    reader.releaseLock();
+    try { reader.releaseLock(); } catch { /* ignore */ }
   }
 
   if (streamError) {
