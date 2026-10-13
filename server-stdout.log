@@ -1,0 +1,24 @@
+▲ Next.js 16.4.0 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.12:3000
+- Environments: .env.local
+✓ Ready in 582ms
+✓ Running next.config.ts took 46ms
+
+ GET / 200 in 388ms (next.js: 220ms, application-code: 168ms)
+ GET / 200 in 53ms (next.js: 3ms, application-code: 51ms)
+ GET /api/session 200 in 91ms (next.js: 68ms, application-code: 23ms)
+ GET /api/session 200 in 17ms (next.js: 4ms, application-code: 13ms)
+ GET /api/documents 200 in 39ms (next.js: 31ms, application-code: 8ms)
+ GET /api/session 200 in 9ms (next.js: 2ms, application-code: 7ms)
+ GET /api/documents 200 in 10ms (next.js: 2ms, application-code: 8ms)
+ GET /api/session 200 in 9ms (next.js: 1.6ms, application-code: 7ms)
+ GET /api/documents 200 in 11ms (next.js: 3ms, application-code: 8ms)
+ GET /api/documents 200 in 8ms (next.js: 1.5ms, application-code: 6ms)
+ GET /api/demo 200 in 36ms (next.js: 28ms, application-code: 8ms)
+ GET /api/demo 200 in 7ms (next.js: 1.3ms, application-code: 6ms)
+ POST /api/demo?action=reset 200 in 8ms (next.js: 1.4ms, application-code: 7ms)
+ POST /api/ask 200 in 652ms (next.js: 33ms, application-code: 619ms)
+ POST /api/ask 200 in 548ms (next.js: 1.5ms, application-code: 547ms)
+ POST /api/ask 200 in 499ms (next.js: 1.6ms, application-code: 498ms)
+ POST /api/demo?action=reset 200 in 9ms (next.js: 2.0ms, application-code: 7ms)
