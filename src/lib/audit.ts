@@ -5,7 +5,7 @@
 // Priya has audit.read_demo_scope for the three demo users; Daniel
 // and Marcus do not have audit access.
 
-import { getUserById } from "./seed";
+import { getUserById, getDocumentById } from "./seed";
 import type { RetrievedExcerpt } from "./retrieval";
 
 export interface AuditDocumentDecision {
@@ -68,27 +68,30 @@ export function buildDocumentDecisions(
 
     if (inModelContext) {
       const excerpt = excerpts.find((e) => e.document_id === docId);
+      const doc = getDocumentById(docId);
       decisions.push({
         document_id: docId,
-        source_version: excerpt?.document_version ?? 0,
-        policy_version: 1,
+        source_version: excerpt?.document_version ?? doc?.version ?? 0,
+        policy_version: doc?.acl.policy_version ?? 1,
         decision: "allow",
         reason:
           "Permitted and relevant to query; excerpt sent to model context.",
       });
     } else if (isPermitted) {
+      const doc = getDocumentById(docId);
       decisions.push({
         document_id: docId,
-        source_version: 0,
-        policy_version: 1,
+        source_version: doc?.version ?? 0,
+        policy_version: doc?.acl.policy_version ?? 1,
         decision: "not_relevant",
         reason: "Permitted but not relevant to query; not sent to model.",
       });
     } else {
+      const doc = getDocumentById(docId);
       decisions.push({
         document_id: docId,
-        source_version: 0,
-        policy_version: 1,
+        source_version: doc?.version ?? 0,
+        policy_version: doc?.acl.policy_version ?? 1,
         decision: "deny",
         reason: "Not permitted for this user.",
       });

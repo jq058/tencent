@@ -95,7 +95,9 @@ async function handleAskRequest(
   const flags = detectFlags(query);
 
   // 2. Search only documents permitted for this identity.
-  const retrievalResult = retrieve(user.id, query);
+  //    Limit to top 5 excerpts to help the model focus on the most
+  //    relevant documents.
+  const retrievalResult = retrieve(user.id, query, 5);
   const { excerpts, evaluated_document_ids, permitted_document_ids } =
     retrievalResult;
 
@@ -160,7 +162,9 @@ async function handleAskRequest(
     excerpts.map((e) => ({
       document_id: e.document_id,
       document_title: e.document_title,
+      document_version: e.document_version,
       content: e.content,
+      content_scope: e.content_scope,
     })),
     user.id,
   );
@@ -202,8 +206,8 @@ async function handleAskRequest(
     // Strip raw [[DOC-ID]] markers from the answer text.
     answer = stripCitations(llmResult.answer);
 
-    // If the LLM returned the neutral response, normalize it.
-    if (answer.includes("I couldn't find information")) {
+    // If the LLM returned the exact neutral response, normalize it.
+    if (answer.trim() === NEUTRAL_RESPONSE) {
       answer = NEUTRAL_RESPONSE;
       validatedCitations = [];
     } else if (rejectedCitationIds.length > 0) {

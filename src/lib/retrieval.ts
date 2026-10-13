@@ -12,6 +12,8 @@ import { canRead } from "./permissions";
 import { getSeedDocuments } from "./seed";
 import type { SeedDocument } from "./types";
 
+export type ContentScope = "full_document" | "excerpt";
+
 export interface RetrievedExcerpt {
   document_id: string;
   document_title: string;
@@ -19,6 +21,7 @@ export interface RetrievedExcerpt {
   document_version: number;
   document_updated_at: string;
   content: string; // the permitted excerpt text
+  content_scope: ContentScope; // whether `content` is the complete document
   score: number;
 }
 
@@ -133,11 +136,26 @@ function countOccurrences(haystack: string, needle: string): number {
 }
 
 // Extract the most relevant excerpt from a document's content.
-// Returns up to ~1500 chars centered around the best keyword cluster.
+// When the document is short enough (under 6000 chars), return the
+// complete content so the model can make statements about the full
+// document, not just a partial excerpt. For longer documents, fall
+// back to selecting the highest-scoring sections (always including
+// the title section for context).
+//
+// Returns the content and a content_scope label indicating whether
+// the full document was included or only a partial excerpt.
 function extractRelevantExcerpt(
   content: string,
   searchTerms: string[],
-): string {
+): { content: string; content_scope: ContentScope } {
+  // If the document is short enough, return it in full. A partial
+  // excerpt only supports statements about that excerpt; the full
+  // content lets the model say what the document does and does not
+  // contain.
+  if (content.length <= 6000) {
+    return { content, content_scope: "full_document" };
+  }
+
   const normalized = normalize(content);
   const sentences = content.split(/\n(?=#{1,4}\s)|\n\n/);
 
@@ -153,25 +171,30 @@ function extractRelevantExcerpt(
     return { sentence: s, sScore };
   });
 
-  scored.sort((a, b) => b.sScore - a.sScore);
+  // Always include the first section (title + intro) for context.
+  const firstSection = sentences[0]?.trim() ?? "";
 
-  // Take top sentences until we reach ~1500 chars
-  const selected: string[] = [];
-  let totalLen = 0;
-  for (const { sentence, sScore } of scored) {
-    if (sScore === 0 && selected.length > 0) continue;
-    if (totalLen + sentence.length > 1500) break;
+  // Score and sort the remaining sentences
+  const scoredRest = scored.slice(1).map((s, i) => ({ ...s, index: i + 1 }));
+  scoredRest.sort((a, b) => b.sScore - a.sScore);
+
+  // Build the excerpt: first section + top-scored remaining sections
+  const selected: string[] = [firstSection];
+  let totalLen = firstSection.length;
+
+  for (const { sentence, sScore } of scoredRest) {
+    if (sScore === 0) continue;
+    if (totalLen + sentence.length > 6000) break;
     selected.push(sentence.trim());
     totalLen += sentence.length;
-    if (selected.length >= 5) break;
+    if (selected.length >= 12) break;
   }
 
   if (selected.length === 0) {
-    // Fallback: first ~1000 chars
-    return content.slice(0, 1000);
+    return { content: content.slice(0, 3000), content_scope: "excerpt" };
   }
 
-  return selected.join("\n\n");
+  return { content: selected.join("\n\n"), content_scope: "excerpt" };
 }
 
 /**
@@ -207,15 +230,22 @@ export function retrieve(
 
   const excerpts: RetrievedExcerpt[] = scored
     .slice(0, maxExcerpts)
-    .map(({ doc }) => ({
-      document_id: doc.id,
-      document_title: doc.title,
-      document_platform: doc.platform,
-      document_version: doc.version,
-      document_updated_at: doc.updated_at,
-      content: extractRelevantExcerpt(doc.content_markdown, searchTerms),
-      score: scored.find((s) => s.doc.id === doc.id)?.score ?? 0,
-    }));
+    .map(({ doc }) => {
+      const { content, content_scope } = extractRelevantExcerpt(
+        doc.content_markdown,
+        searchTerms,
+      );
+      return {
+        document_id: doc.id,
+        document_title: doc.title,
+        document_platform: doc.platform,
+        document_version: doc.version,
+        document_updated_at: doc.updated_at,
+        content,
+        content_scope,
+        score: scored.find((s) => s.doc.id === doc.id)?.score ?? 0,
+      };
+    });
 
   return {
     excerpts,
