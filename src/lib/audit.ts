@@ -6,6 +6,7 @@
 // and Marcus do not have audit access.
 
 import { getUserById } from "./seed";
+import { getWorkingDocumentById } from "./workstore";
 import type { RetrievedExcerpt } from "./retrieval";
 
 export interface AuditDocumentDecision {
@@ -66,12 +67,18 @@ export function buildDocumentDecisions(
     const isPermitted = permittedIds.includes(docId);
     const inModelContext = modelContextSet.has(docId);
 
+    // Look up the actual ACL policy_version from the working store
+    // (not hardcoded). After mutations (E01/E02), policy_version
+    // reflects the current state.
+    const doc = getWorkingDocumentById(docId);
+    const policyVersion = doc?.acl.policy_version ?? 0;
+
     if (inModelContext) {
       const excerpt = excerpts.find((e) => e.document_id === docId);
       decisions.push({
         document_id: docId,
         source_version: excerpt?.document_version ?? 0,
-        policy_version: 1,
+        policy_version: policyVersion,
         decision: "allow",
         reason:
           "Permitted and relevant to query; excerpt sent to model context.",
@@ -79,16 +86,16 @@ export function buildDocumentDecisions(
     } else if (isPermitted) {
       decisions.push({
         document_id: docId,
-        source_version: 0,
-        policy_version: 1,
+        source_version: doc?.version ?? 0,
+        policy_version: policyVersion,
         decision: "not_relevant",
         reason: "Permitted but not relevant to query; not sent to model.",
       });
     } else {
       decisions.push({
         document_id: docId,
-        source_version: 0,
-        policy_version: 1,
+        source_version: doc?.version ?? 0,
+        policy_version: policyVersion,
         decision: "deny",
         reason: "Not permitted for this user.",
       });

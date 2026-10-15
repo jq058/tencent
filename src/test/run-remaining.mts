@@ -65,9 +65,8 @@ for (const testCase of tests) {
     } else {
       if (testCase.expected.required_citation_groups) {
         const citationIds = new Set(data.citations.map((c: any) => c.document_id));
-        const allSourceIds = new Set<string>([...Array.from(citationIds), ...contextIds]);
-        const missing = testCase.expected.required_citation_groups.filter((g: string[]) => !g.some((id) => allSourceIds.has(id)));
-        checks.push({ name: "Required citation groups", passed: missing.length === 0, detail: missing.length === 0 ? "All present" : `Missing: ${missing.map((g: string[]) => "[" + g.join("|") + "]").join(" ")}` });
+        const missing = testCase.expected.required_citation_groups.filter((g: string[]) => !g.some((id) => citationIds.has(id)));
+        checks.push({ name: "Required citation groups", passed: missing.length === 0, detail: missing.length === 0 ? "All present" : `Missing: ${missing.map((g: string[]) => "[" + g.join("|") + "]").join(" ")}]` });
       }
       if (testCase.expected.forbidden_literals) {
         const found = testCase.expected.forbidden_literals.filter((lit: string) => data.answer.toLowerCase().includes(lit.toLowerCase()));

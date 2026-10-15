@@ -16,19 +16,19 @@
 // No retries, no restarts. If callLlm fails, the test is reported as-is.
 
 import * as fs from "node:fs";
-import { randomUUID } from "node:crypto";
 
-// Set env var before importing
-process.env.ADP_APP_KEY =
-  process.env.ADP_APP_KEY ||
-  "hxboKSErIEVpcKlPTyLppVdFGOYcKGNuTmjZVxzdLZvVngfXjngSGCLDindjGcBBEBXnKsbdvmMxXLtbnvaNIIlhPUjdWRpCYabDlqwjeBfxhdGuxPgkQZWJMZGiOOLw";
+// Credentials are loaded ONLY from process.env.
+// Do NOT hardcode API keys in this file.
+// Set ADP_APP_KEY in .env.local before running live tests.
 
 // Import the application code
 const { resolveSession } = await import("../lib/session");
 const { retrieve } = await import("../lib/retrieval");
-const { canRead } = await import("../lib/permissions");
-const { callLlm, extractCitationIds, stripCitations } = await import("../lib/llm");
+const { callLlm } = await import("../lib/llm");
 const { recordAuditEvent } = await import("../lib/audit");
+const { createBudget } = await import("./test-budget");
+
+const budget = createBudget(3);
 
 interface TestExpected {
   requirements?: string[];
@@ -100,25 +100,60 @@ async function runOne(testCase: TestCase): Promise<TestResult> {
   // 3. Check model config
   const config = { configured: !!process.env.ADP_APP_KEY, provider: "adp" as string | null };
 
-  // 4. Call LLM
+  // 4. Call LLM — enforce 3-call budget and live-test switch.
   let llmResult;
-  try {
-    llmResult = await callLlm(
-      testCase.query,
-      excerpts.map((e) => ({
-        document_id: e.document_id,
-        document_title: e.document_title,
-        content: e.content,
-      })),
-      user.id,
-    );
-  } catch (err) {
+  if (!budget.isLiveTestEnabled()) {
+    // Offline mode — do not call the model.
     return {
       testId: testCase.id,
-      status: "FAIL",
-      checks: [{ name: "LLM call", passed: false, detail: `Crashed: ${err instanceof Error ? err.message : String(err)}` }],
+      status: "BLOCKED",
+      checks: [
+        ...checks,
+        { name: "Live test enabled", passed: false, detail: "Set LIVE_TEST=1 to run live model tests." },
+      ],
       answer: "",
       modelError: null,
+      citationValidationError: null,
+      rejectedCitationIds: [],
+      modelContextIds: excerpts.map((e) => e.document_id),
+    };
+  }
+  if (!budget.canCall()) {
+    return {
+      testId: testCase.id,
+      status: "BLOCKED",
+      checks: [
+        ...checks,
+        { name: "Model call budget", passed: false, detail: `Budget exhausted (${budget.getState().callsMade}/3). ${budget.getState().quotaErrorMessage ?? ""}` },
+      ],
+      answer: "",
+      modelError: budget.getState().quotaErrorMessage,
+      citationValidationError: null,
+      rejectedCitationIds: [],
+      modelContextIds: excerpts.map((e) => e.document_id),
+    };
+  }
+  try {
+    llmResult = await budget.call(async () => {
+      return await callLlm(
+        testCase.query,
+        excerpts.map((e) => ({
+          document_id: e.document_id,
+          document_title: e.document_title,
+          content: e.content,
+        })),
+        user.id,
+      );
+    });
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    budget.checkQuotaError(errMsg);
+    return {
+      testId: testCase.id,
+      status: budget.getState().quotaError ? "BLOCKED" : "FAIL",
+      checks: [{ name: "LLM call", passed: false, detail: `Crashed: ${errMsg}` }],
+      answer: "",
+      modelError: errMsg,
       citationValidationError: null,
       rejectedCitationIds: [],
       modelContextIds: excerpts.map((e: any) => e.document_id),
@@ -135,52 +170,32 @@ async function runOne(testCase: TestCase): Promise<TestResult> {
     detail: `Context: [${modelContextIds.join(", ")}]`,
   });
 
-  // Model error check
+  // Model error check — detect quota errors and stop further calls.
   if (llmResult.error) {
+    budget.checkQuotaError(llmResult.error);
     checks.push({ name: "Model connection", passed: false, detail: llmResult.error });
   }
 
-  let answer = llmResult.answer || "";
-  let validatedCitations: string[] = [];
-  let rejectedCitationIds: string[] = [];
-  let citationValidationError: string | null = null;
+  // Use the SHARED production validator — not a duplicated copy.
+  const { processLlmResult } = await import("../app/api/ask/route");
+  const processed = processLlmResult(
+    { ok: llmResult.ok, answer: llmResult.answer ?? null, error: llmResult.error },
+    user.id,
+    excerpts.map((e) => ({
+      document_id: e.document_id,
+      document_title: e.document_title,
+      document_platform: e.document_platform,
+      document_version: e.document_version,
+    })),
+  );
 
-  if (llmResult.ok && answer) {
-    // Extract and validate citations
-    const rawCitationIds = extractCitationIds(answer);
-    const excerptMap = new Map(excerpts.map((e) => [e.document_id, e]));
-    const seen = new Set<string>();
-    for (const id of rawCitationIds) {
-      if (seen.has(id)) continue;
-      seen.add(id);
-      const excerpt = excerptMap.get(id);
-      if (!excerpt) {
-        rejectedCitationIds.push(id);
-        continue;
-      }
-      if (!canRead(user.id, id)) {
-        rejectedCitationIds.push(id);
-        continue;
-      }
-      validatedCitations.push(id);
-    }
+  let answer = processed.answer;
+  let validatedCitations = processed.validatedCitations;
+  let citationValidationError = processed.citationValidationError;
+  let rejectedCitationIds = processed.rejectedCitationIds;
 
-    answer = stripCitations(answer);
-
-    if (answer.includes("I couldn't find information")) {
-      answer = NEUTRAL;
-      validatedCitations = [];
-    } else if (rejectedCitationIds.length > 0) {
-      citationValidationError =
-        `The model referenced ${rejectedCitationIds.length} document(s) ` +
-        `that were not in the permitted excerpts: [${rejectedCitationIds.join(", ")}].`;
-      answer = NEUTRAL;
-      validatedCitations = [];
-    }
-
-    if (citationValidationError) {
-      checks.push({ name: "Citation validation", passed: false, detail: citationValidationError });
-    }
+  if (citationValidationError) {
+    checks.push({ name: "Citation validation", passed: false, detail: citationValidationError });
   }
 
   // Check if this is a neutral or positive test

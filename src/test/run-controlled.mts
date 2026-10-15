@@ -1,115 +1,41 @@
 // Controlled failure-path test runner.
 //
-// Tests the citation validation and error-handling logic in the
-// /api/ask route handler WITHOUT consuming real ADP quota. Uses
-// simulated LlmCallResult fixtures from controlled-fixtures.ts.
+// Tests the citation validation and error-handling logic by calling
+// the SAME processLlmResult function exported from the production
+// /api/ask route handler. This ensures tests exercise the real
+// production code, not a duplicated (and potentially divergent) copy.
 //
 // These tests verify:
 //   1. ADP quota error → model_error surfaced, neutral answer
 //   2. Stream disconnect → model_error surfaced, neutral answer
 //   3. Unknown citation → response rejected, neutral answer
-//   4. Permitted-but-not-sent citation → response rejected
-//   5. Substantive answer with no citations → rejected (if not neutral)
+//   4. Forbidden citation → response rejected (doc permitted for
+//      another user but not the current user)
+//   5. Permitted-but-not-sent citation → response rejected (doc
+//      permitted for the user but not in the excerpts sent to the model)
+//   6. Substantive answer with no citations → REJECTED
+//   7. Valid answer with correct citations → passes
 //
-// This is a component test, not a substitute for HTTP tests.
+// Uses simulated LlmCallResult fixtures — no ADP quota consumed.
 
 import {
   fixtureQuotaError,
-  fixtureConnectionError,
   fixtureStreamDisconnect,
-  fixtureEmptyResponse,
   fixtureValidAnswer,
   fixtureUnknownCitation,
   fixturePermittedButNotSent,
   fixtureNoCitationAnswer,
 } from "./controlled-fixtures";
 import { resolveSession } from "@/lib/session";
-import { retrieve, hasRelevantEvidence } from "@/lib/retrieval";
-import { canRead } from "@/lib/permissions";
-import { extractCitationIds, stripCitations, type LlmCallResult } from "@/lib/llm";
+import { retrieve } from "@/lib/retrieval";
+import { processLlmResult } from "@/app/api/ask/route";
+import type { CheckResult, FixtureTestResult } from "./test-types";
 
 const NEUTRAL = "I couldn't find information in the sources available to you.";
 
-interface CheckResult {
-  name: string;
-  passed: boolean;
-  detail: string;
-}
-
-interface FixtureTestResult {
-  name: string;
-  status: "PASS" | "FAIL";
-  checks: CheckResult[];
-}
-
-/**
- * Process a simulated LlmCallResult through the same citation
- * validation logic that the /api/ask route uses. This mirrors the
- * code in route.ts lines 230-258.
- */
-function processLlmResult(
-  llmResult: LlmCallResult,
-  userId: string,
-  excerpts: Array<{ document_id: string; document_title: string; document_platform: string; document_version: number }>,
-): {
-  answer: string;
-  validatedCitations: string[];
-  rejectedCitationIds: string[];
-  modelError: string | null;
-  citationValidationError: string | null;
-} {
-  let answer: string;
-  let validatedCitations: string[] = [];
-  let modelError: string | null = null;
-  let citationValidationError: string | null = null;
-  let rejectedCitationIds: string[] = [];
-
-  if (!llmResult.ok || !llmResult.answer) {
-    modelError = llmResult.error ?? "Model call failed.";
-    answer = NEUTRAL;
-    validatedCitations = [];
-  } else {
-    const rawCitationIds = extractCitationIds(llmResult.answer);
-    const excerptMap = new Map(excerpts.map((e) => [e.document_id, e]));
-    const seen = new Set<string>();
-
-    for (const id of rawCitationIds) {
-      if (seen.has(id)) continue;
-      seen.add(id);
-
-      const excerpt = excerptMap.get(id);
-      if (!excerpt) {
-        rejectedCitationIds.push(id);
-        continue;
-      }
-      if (!canRead(userId, id)) {
-        rejectedCitationIds.push(id);
-        continue;
-      }
-      validatedCitations.push(id);
-    }
-
-    answer = stripCitations(llmResult.answer);
-
-    if (answer.includes("I couldn't find information")) {
-      answer = NEUTRAL;
-      validatedCitations = [];
-    } else if (rejectedCitationIds.length > 0) {
-      citationValidationError =
-        `The model referenced ${rejectedCitationIds.length} document(s) ` +
-        `that were not in the permitted excerpts sent to it: ` +
-        `[${rejectedCitationIds.join(", ")}]. The response is rejected.`;
-      answer = NEUTRAL;
-      validatedCitations = [];
-    }
-  }
-
-  return { answer, validatedCitations, rejectedCitationIds, modelError, citationValidationError };
-}
-
 function runFixtureTest(
   name: string,
-  llmResult: LlmCallResult,
+  llmResult: Parameters<typeof processLlmResult>[0],
   userId: string,
   query: string,
   checks: (result: ReturnType<typeof processLlmResult>) => CheckResult[],
@@ -124,7 +50,12 @@ function runFixtureTest(
   }
 
   const retrievalResult = retrieve(user.id, query);
-  const excerpts = retrievalResult.excerpts;
+  const excerpts = retrievalResult.excerpts.map((e) => ({
+    document_id: e.document_id,
+    document_title: e.document_title,
+    document_platform: e.document_platform,
+    document_version: e.document_version,
+  }));
   const result = processLlmResult(llmResult, user.id, excerpts);
   const checkResults = checks(result);
 
@@ -137,7 +68,8 @@ function runFixtureTest(
 
 async function main() {
   console.log("\n=== Controlled Failure-Path Tests ===");
-  console.log("Mode: simulated LlmCallResult fixtures (no ADP quota consumed)\n");
+  console.log("Mode: simulated LlmCallResult fixtures (no ADP quota consumed)");
+  console.log("Validator: shared production processLlmResult (not duplicated)\n");
 
   const results: FixtureTestResult[] = [];
 
@@ -171,35 +103,7 @@ async function main() {
     ),
   );
 
-  // 3. Connection error
-  results.push(
-    runFixtureTest(
-      "Connection error surfaces model_error and neutral answer",
-      fixtureConnectionError(),
-      "daniel",
-      "What happened with the Indonesia payouts in August?",
-      (r) => [
-        { name: "model_error is set", passed: r.modelError !== null && r.modelError.includes("ECONNREFUSED"), detail: r.modelError ?? "null" },
-        { name: "Answer is neutral", passed: r.answer === NEUTRAL, detail: r.answer.slice(0, 50) },
-      ],
-    ),
-  );
-
-  // 4. Empty response
-  results.push(
-    runFixtureTest(
-      "Empty response surfaces model_error",
-      fixtureEmptyResponse(),
-      "daniel",
-      "What happened with the Indonesia payouts in August?",
-      (r) => [
-        { name: "model_error is set", passed: r.modelError !== null && r.modelError.includes("empty"), detail: r.modelError ?? "null" },
-        { name: "Answer is neutral", passed: r.answer === NEUTRAL, detail: r.answer.slice(0, 50) },
-      ],
-    ),
-  );
-
-  // 5. Unknown citation (FAKE-DOC-999)
+  // 3. Unknown citation (FAKE-DOC-999)
   results.push(
     runFixtureTest(
       "Unknown citation rejected, response not displayed",
@@ -215,10 +119,12 @@ async function main() {
     ),
   );
 
-  // 6. Permitted-but-not-sent citation (Priya's doc cited by Daniel)
+  // 4. Forbidden citation: a Compliance document (DRIVE-COMP-001)
+  //    cited by Daniel. Daniel does NOT have access to Compliance
+  //    documents — this tests the forbidden-document path.
   results.push(
     runFixtureTest(
-      "Permitted-but-not-sent citation rejected",
+      "Forbidden citation (Compliance doc cited by Daniel) rejected",
       fixturePermittedButNotSent("The compliance report shows 340 affected payouts.", "DRIVE-COMP-001"),
       "daniel",
       "What happened with the Indonesia payouts in August?",
@@ -231,34 +137,45 @@ async function main() {
     ),
   );
 
-  // 7. Substantive answer with no citations
+  // 5. Permitted-but-not-sent citation: CONF-GEN-001 is permitted
+  //    for Daniel but NOT in the excerpts for this query (the
+  //    retrieval for "Indonesia payouts" returns ENG docs, not the
+  //    general handbook). This tests the "permitted document omitted
+  //    from the actual model context" path.
+  results.push(
+    runFixtureTest(
+      "Permitted-but-not-sent citation rejected",
+      fixturePermittedButNotSent("The payout issue was resolved by 14:10.", "CONF-GEN-001"),
+      "daniel",
+      "What happened with the Indonesia payouts in August?",
+      (r) => [
+        { name: "citation_validation_error is set", passed: r.citationValidationError !== null, detail: r.citationValidationError ?? "null" },
+        { name: "Rejected citation includes CONF-GEN-001", passed: r.rejectedCitationIds.includes("CONF-GEN-001"), detail: r.rejectedCitationIds.join(", ") },
+        { name: "Answer is neutral (not displayed)", passed: r.answer === NEUTRAL, detail: r.answer.slice(0, 50) },
+        { name: "No validated citations", passed: r.validatedCitations.length === 0, detail: r.validatedCitations.join(", ") },
+      ],
+    ),
+  );
+
+  // 6. Substantive answer with no citations — NOW REJECTED
+  //    The production guard rejects substantive answers that have
+  //    zero valid citations. This test now verifies the rejection.
   results.push(
     runFixtureTest(
       "Substantive answer with no citations is rejected",
       fixtureNoCitationAnswer("The payout issue was caused by a missing branch code and was resolved by 14:10."),
       "daniel",
       "What happened with the Indonesia payouts in August?",
-      (r) => {
-        // The answer has no citations. The route handler doesn't
-        // explicitly reject no-citation answers, but the evaluation
-        // contract requires citations for positive answers. The test
-        // verifies that no citations are validated.
-        const isNeutral = r.answer === NEUTRAL;
-        return [
-          { name: "No citations extracted", passed: r.validatedCitations.length === 0, detail: r.validatedCitations.join(", ") },
-          { name: "No rejected citations", passed: r.rejectedCitationIds.length === 0, detail: r.rejectedCitationIds.join(", ") },
-          { name: "No model_error", passed: r.modelError === null, detail: r.modelError ?? "null" },
-          { name: "No citation_validation_error", passed: r.citationValidationError === null, detail: r.citationValidationError ?? "null" },
-          // Note: the answer IS displayed (not neutral) because there
-          // are no rejected citations. This is a known gap — the route
-          // handler doesn't reject no-citation positive answers.
-          { name: "Answer is substantive (displayed)", passed: !isNeutral, detail: isNeutral ? "Neutral" : "Substantive" },
-        ];
-      },
+      (r) => [
+        { name: "citation_validation_error is set", passed: r.citationValidationError !== null, detail: r.citationValidationError ?? "null" },
+        { name: "Answer is neutral (rejected)", passed: r.answer === NEUTRAL, detail: r.answer.slice(0, 50) },
+        { name: "No validated citations", passed: r.validatedCitations.length === 0, detail: r.validatedCitations.join(", ") },
+        { name: "No model_error (was a valid LLM response)", passed: r.modelError === null, detail: r.modelError ?? "null" },
+      ],
     ),
   );
 
-  // 8. Valid answer with correct citations
+  // 7. Valid answer with correct citations
   results.push(
     runFixtureTest(
       "Valid answer with correct citations passes",

@@ -164,21 +164,21 @@ async function runTest(
   // ── Positive-answer tests ──
 
   // Check: Required citation groups satisfied.
+  // Check ONLY against citations actually returned in the answer,
+  // NOT documents merely included in model context.
   if (testCase.expected.required_citation_groups && testCase.expected.required_citation_groups.length > 0) {
     const citationIds = new Set(data.citations.map((c) => c.document_id));
-    const contextIds = data.model_context_document_ids ?? [];
-    const allSourceIds = new Set([...citationIds, ...contextIds]);
     const missingGroups: string[][] = [];
     for (const group of testCase.expected.required_citation_groups) {
-      const found = group.some((id) => allSourceIds.has(id));
+      const found = group.some((id) => citationIds.has(id));
       if (!found) missingGroups.push(group);
     }
     checks.push({
-      name: "Required citation groups satisfied",
+      name: "Required citation groups (from returned citations)",
       passed: missingGroups.length === 0,
       detail: missingGroups.length === 0
-        ? "All required citation groups present"
-        : `Missing groups: ${missingGroups.map((g) => `[${g.join("|")}]`).join(" ")}`,
+        ? `All present: [${data.citations.map((c) => c.document_id).join(", ")}]`
+        : `Missing: ${missingGroups.map((g) => `[${g.join("|")}]`).join(" ")}. Returned: [${data.citations.map((c) => c.document_id).join(", ")}]`,
     });
   }
 

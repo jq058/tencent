@@ -161,16 +161,15 @@ async function runOne(
     // Positive test
     if (testCase.expected.required_citation_groups && testCase.expected.required_citation_groups.length > 0) {
       const citationIds = new Set(data.citations.map((c) => c.document_id));
-      const allSourceIds = new Set([...citationIds, ...contextIds]);
       const missingGroups: string[][] = [];
       for (const group of testCase.expected.required_citation_groups) {
-        const found = group.some((id) => allSourceIds.has(id));
+        const found = group.some((id) => citationIds.has(id));
         if (!found) missingGroups.push(group);
       }
       checks.push({
-        name: "Required citation groups satisfied",
+        name: "Required citation groups (from returned citations)",
         passed: missingGroups.length === 0,
-        detail: missingGroups.length === 0 ? "All required citation groups present" : `Missing groups: ${missingGroups.map((g) => `[${g.join("|")}]`).join(" ")}`,
+        detail: missingGroups.length === 0 ? "All required citation groups present" : `Missing: ${missingGroups.map((g) => `[${g.join("|")}]`).join(" ")}`,
       });
     }
     if (testCase.expected.forbidden_literals) {

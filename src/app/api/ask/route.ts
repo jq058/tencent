@@ -202,8 +202,12 @@ async function handleAskRequest(
     // Strip raw [[DOC-ID]] markers from the answer text.
     answer = stripCitations(llmResult.answer);
 
-    // If the LLM returned the neutral response, normalize it.
-    if (answer.includes("I couldn't find information")) {
+    // Check for the neutral response using an EXACT match, not a
+    // broad substring. The model is instructed to return the exact
+    // neutral string when it cannot answer. A broad substring match
+    // can erase a legitimate qualified answer that happens to
+    // contain those words.
+    if (answer.trim() === NEUTRAL_RESPONSE) {
       answer = NEUTRAL_RESPONSE;
       validatedCitations = [];
     } else if (rejectedCitationIds.length > 0) {
@@ -215,6 +219,16 @@ async function handleAskRequest(
         `The model referenced ${rejectedCitationIds.length} document(s) ` +
         `that were not in the permitted excerpts sent to it: ` +
         `[${rejectedCitationIds.join(", ")}]. The response is rejected.`;
+      answer = NEUTRAL_RESPONSE;
+      validatedCitations = [];
+    } else if (validatedCitations.length === 0) {
+      // The answer is substantive (not the neutral response) but
+      // has zero valid citations. Reject it: an answer without
+      // supporting evidence must not be displayed as verified.
+      citationValidationError =
+        `The model returned a substantive answer with no valid citations. ` +
+        `Every positive answer must cite at least one document from the ` +
+        `provided evidence. The response is rejected.`;
       answer = NEUTRAL_RESPONSE;
       validatedCitations = [];
     }
@@ -293,4 +307,87 @@ function validateCitations(
   }
 
   return validated;
+}
+
+// ── Shared production citation validator ────────────────────────
+//
+// Exported so test scripts exercise the SAME logic as the production
+// route, instead of duplicating (and potentially diverging from) it.
+// Controlled tests should call this function with simulated
+// LlmCallResult objects.
+
+export interface ProcessLlmResultInput {
+  document_id: string;
+  document_title: string;
+  document_platform: string;
+  document_version: number;
+}
+
+export interface ProcessLlmResultOutput {
+  answer: string;
+  validatedCitations: string[];
+  rejectedCitationIds: string[];
+  modelError: string | null;
+  citationValidationError: string | null;
+}
+
+export function processLlmResult(
+  llmResult: { ok: boolean; answer: string | null; error?: string },
+  userId: string,
+  excerpts: ProcessLlmResultInput[],
+): ProcessLlmResultOutput {
+  let answer: string;
+  let validatedCitations: string[] = [];
+  let modelError: string | null = null;
+  let citationValidationError: string | null = null;
+  const rejectedCitationIds: string[] = [];
+
+  if (!llmResult.ok || !llmResult.answer) {
+    modelError = llmResult.error ?? "Model call failed.";
+    answer = NEUTRAL_RESPONSE;
+    validatedCitations = [];
+  } else {
+    const rawCitationIds = extractCitationIds(llmResult.answer);
+    const excerptMap = new Map(excerpts.map((e) => [e.document_id, e]));
+    const seen = new Set<string>();
+
+    for (const id of rawCitationIds) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+
+      const excerpt = excerptMap.get(id);
+      if (!excerpt) {
+        rejectedCitationIds.push(id);
+        continue;
+      }
+      if (!canRead(userId, id)) {
+        rejectedCitationIds.push(id);
+        continue;
+      }
+      validatedCitations.push(id);
+    }
+
+    answer = stripCitations(llmResult.answer);
+
+    if (answer.trim() === NEUTRAL_RESPONSE) {
+      answer = NEUTRAL_RESPONSE;
+      validatedCitations = [];
+    } else if (rejectedCitationIds.length > 0) {
+      citationValidationError =
+        `The model referenced ${rejectedCitationIds.length} document(s) ` +
+        `that were not in the permitted excerpts sent to it: ` +
+        `[${rejectedCitationIds.join(", ")}]. The response is rejected.`;
+      answer = NEUTRAL_RESPONSE;
+      validatedCitations = [];
+    } else if (validatedCitations.length === 0) {
+      citationValidationError =
+        `The model returned a substantive answer with no valid citations. ` +
+        `Every positive answer must cite at least one document from the ` +
+        `provided evidence. The response is rejected.`;
+      answer = NEUTRAL_RESPONSE;
+      validatedCitations = [];
+    }
+  }
+
+  return { answer, validatedCitations, rejectedCitationIds, modelError, citationValidationError };
 }

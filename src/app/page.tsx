@@ -7,7 +7,6 @@ import type {
   ClientDocumentMeta,
   ClientDocumentDetail,
   ConversationMessage,
-  Citation,
 } from "@/lib/types";
 
 interface AppState {
@@ -79,6 +78,7 @@ export default function HomePage() {
   const [modelProvider, setModelProvider] = useState<string | null>(null);
   const [modelModel, setModelModel] = useState<string | null>(null);
   const [modelError, setModelError] = useState<string | null>(null);
+  const [citationValidationError, setCitationValidationError] = useState<string | null>(null);
 
   const fetchSessionAndDocs = useCallback(async (userId: string | null) => {
     const headers: Record<string, string> = {};
@@ -221,6 +221,7 @@ export default function HomePage() {
         setModelModel(data.model_model);
       }
       setModelError(data.model_error ?? null);
+      setCitationValidationError(data.citation_validation_error ?? null);
 
       const assistantMessage: ConversationMessage = {
         role: "assistant",
@@ -235,9 +236,11 @@ export default function HomePage() {
         [userId]: [...(prev[userId] ?? []), assistantMessage],
       }));
     } catch {
+      // Network/connection failure — show a distinct error message
+      // instead of disguising it as "no information found."
       const errorMessage: ConversationMessage = {
         role: "assistant",
-        content: "I couldn't find information in the sources available to you.",
+        content: "Connection error: unable to reach the server. Please check your network and try again.",
         citations: [],
         timestamp: new Date().toISOString(),
       };
@@ -353,6 +356,11 @@ export default function HomePage() {
           {state.user && modelError && (
             <div className="mb-3 rounded-md border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs text-red-800 dark:text-red-200">
               <strong>Model connection error.</strong> {modelError}
+            </div>
+          )}
+          {state.user && citationValidationError && (
+            <div className="mb-3 rounded-md border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+              <strong>Citation validation error.</strong> {citationValidationError}
             </div>
           )}
 

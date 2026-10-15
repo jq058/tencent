@@ -1,34 +1,40 @@
 // Server-only seed data loader.
-// This module reads seed.json from disk at startup and caches it.
-// The seed file lives under src/server-data/ and is never imported
-// into any client component or bundle.
+//
+// This module provides access to the working store (mutable copies
+// of documents and users). All read accessors delegate to workstore.ts
+// so that document updates, access revocation, and resets are visible
+// across the application.
+//
+// The original seed file lives under src/server-data/ and is never
+// imported into any client component or bundle.
 
 import type { SeedData } from "./types";
-
-import seedJson from "../server-data/seed.json";
-
-const seedData = seedJson as unknown as SeedData;
-
-// Build lookup maps once at module load.
-const usersById = new Map(seedData.users.map((u) => [u.id, u]));
-const documentsById = new Map(seedData.documents.map((d) => [d.id, d]));
+import {
+  getWorkingDocuments,
+  getWorkingUsers,
+  getWorkingDocumentById,
+  getWorkingUserById,
+  getOriginalSeedData,
+} from "./workstore";
 
 export function getSeedData(): SeedData {
-  return seedData;
+  // Return original seed data (immutable baseline). Use this only for
+  // reference, not for live document/user access.
+  return getOriginalSeedData();
 }
 
 export function getSeedUsers(): SeedData["users"] {
-  return seedData.users;
+  return getWorkingUsers();
 }
 
 export function getSeedDocuments(): SeedData["documents"] {
-  return seedData.documents;
+  return getWorkingDocuments();
 }
 
 export function getUserById(id: string) {
-  return usersById.get(id) ?? null;
+  return getWorkingUserById(id);
 }
 
 export function getDocumentById(id: string) {
-  return documentsById.get(id) ?? null;
+  return getWorkingDocumentById(id);
 }
